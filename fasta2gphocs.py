@@ -21,6 +21,7 @@ except ImportError:
 from Bio import AlignIO
 
 def align(fasta):
+    # MAFFT needs to be in the path	
     in_file = os.path.relpath(fasta)
     mafft_cline = MafftCommandline(input=in_file)
     stdout, stderr = mafft_cline()
