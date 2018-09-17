@@ -5,6 +5,8 @@
 Created on Wed Sep 12 19:47:44 2018
 
 @author: lexlu
+
+Python 3
 """
 
 import sys # used for arguments
