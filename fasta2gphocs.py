@@ -35,7 +35,7 @@ def main(argv):
         print("Arguments: Fasta1, Fasta2, Output")
         return
     
-    # if yes, continue on, set directory and birds
+    # if yes, continue on
     output = argv[-1]
     
     name1 = argv[0].split(".")[0]
