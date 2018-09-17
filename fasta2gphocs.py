@@ -45,26 +45,26 @@ def main(argv):
     fasta1 = os.path.relpath(argv[0])
     fasta2 = os.path.relpath(argv[1])
     
-    # use SeqRecord object to hold file data
+    # Use SeqRecord object to hold file data
     seq_1 = SeqIO.to_dict(SeqIO.parse(fasta1, "fasta"), lambda record: record.id.split('_')[0])
     seq_2 = SeqIO.to_dict(SeqIO.parse(fasta2, "fasta"), lambda record: record.id.split('_')[0])
     
-    #get intersection
+    # Get intersection
     intersect = seq_1.keys() & seq_2.keys()
     
     number_of_loci = len(intersect)
     
-    #Write G-PhoCS file
+    # Write G-PhoCS file
     outfile = open(output, 'w')
     
     # Print the header, the number of loci in this file
     outfile.write(str(number_of_loci) + "\n\n")
     
-    #Loop through loci
+    # Loop through loci
     for i in range(number_of_loci):
         locus = list(intersect)[i]
         
-        #Aligned direct in biopython (not ideal)
+        # Aligned direct in biopython (not ideal)
 #        seq1 = str(seq_1[locus].seq)
 #        seq2 = str(seq_2[locus].seq)        
 #        alignments = pairwise2.align.globalms(seq1, seq2, 1, -2, -15, -6.6666)
@@ -73,29 +73,29 @@ def main(argv):
 
         seq1 = seq_1[locus]
         seq2 = seq_2[locus]
-        #write locus fasta for alignment
+        # write locus fasta for alignment
         SeqIO.write([seq1,seq2], locus+".fasta", "fasta")
         
-        #aligning with MAFFT
+        # Aligning with MAFFT
         alignments = align(locus+".fasta")
         sequence1 = alignments[0]
         sequence2 = alignments[1]
 
-        #Delete alignment file
+        # Delete alignment file
         os.remove(locus+".fasta")
         
         # Print out the header for this locus
         # <locus_name> <n_samples> <locus_length>
         outfile.write('{} {} {}\n'.format(list(intersect)[i], '2', len(sequence1)))
         
-        #write sequences
+        # Write sequences
         outfile.write(name1 + " "*(longname-len(name1))+ sequence1 + "\n")
         outfile.write(name2 + " "*(longname-len(name2))+ sequence2 + "\n")
         
         ## Separate loci with so it's prettier
         outfile.write("\n")
 
-        ###print status
+        ### Print status
         print("Locus "+locus+" done!"+"\n"
               +str(i+1)+" of "+str(number_of_loci)+" loci completed")
         
