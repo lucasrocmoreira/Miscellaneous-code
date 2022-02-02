@@ -13,7 +13,7 @@ Help()
 {
    # Display Help
    echo
-   echo "Script to create a jointly call genotypes from GVCFS using GATK4."
+   echo "Script to jointly call genotypes from GVCFS using GATK4."
    echo
    echo "Syntax: GenotypeGVCFs_GATK4.sh GenomicsDB REF OUT"
    echo "GenomicsDB = text file with sample-name-map (one gvcf file per line; tab-delimited)"
