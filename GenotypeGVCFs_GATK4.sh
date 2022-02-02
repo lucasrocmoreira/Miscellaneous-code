@@ -48,7 +48,7 @@ export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpdir
 
 # -b tells the cluster to execute the job as a binary. This saves a lot of time because the cluster will not transfer your script but instead just the pointer to the path.
 # -p defines the priority of the job
-# -V declares that	all environment	variables in the qsub command's environment	are to be exported to the batch	job.
+# -V declares that all environment variables in the qsub command's environment	are to be exported to the batch	job.
 # -j declares if the standard error stream	of the job will be merged with the standard output stream of 
 # -cwd tells that the job should be executed in the same directory that qsub was called.
 
