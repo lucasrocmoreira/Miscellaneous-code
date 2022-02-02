@@ -53,9 +53,3 @@ export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpdir
 # -cwd tells that the job should be executed in the same directory that qsub was called.
 
 qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N GenomicsDB -cwd -o VCF/GenomicsDB.out -j y -V $GATK_EXECUTABLE --java-options "-Xmx20g" GenomicsDBImport -V $1 --genomicsdb-workspace-path Gorilla_genomicDB --tmp-dir $tmpdir -L $2
-
-
-
-./bam2gvcf_GATK4.sh reference/Gorilla_gorilla_gorilla.fasta aligned_bam/gor1.5.indel_realigned.bam
-
-for i in aligned_bam/*.5.indel_realigned.bam; do ./bam2gvcf_GATK4.sh reference/Gorilla_gorilla_gorilla.fasta $i; done
