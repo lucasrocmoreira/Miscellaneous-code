@@ -48,8 +48,8 @@ export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpdir
 
 # -b tells the cluster to execute the job as a binary. This saves a lot of time because the cluster will not transfer your script but instead just the pointer to the path.
 # -p defines the priority of the job
-# -V declares that all environment variables in the qsub command's environment	are to be exported to the batch	job.
-# -j declares if the standard error stream	of the job will be merged with the standard output stream of 
+# -V declares that all environment variables in the qsub command's environment are to be exported to the batch	job.
+# -j declares if the standard error stream of the job will be merged with the standard output stream of 
 # -cwd tells that the job should be executed in the same directory that qsub was called.
 
 qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N GenotypeGVCFs -cwd -o VCF/GenotypeGVCFs.out -j y -V $GATK_EXECUTABLE --java-options "-Xmx20g" GenotypeGVCFs -R $2 -V gendb:$1 -O $3.vcf.gz --tmp-dir=$tmpdir
