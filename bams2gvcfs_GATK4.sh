@@ -47,8 +47,3 @@ export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpdir
 # -j declares if the standard error stream of the job will be merged with the standard output stream of 
 # -cwd tells that the job should be executed in the same directory that qsub was called.
 qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N $name -cwd -o GVCF/$name.haplotype_caller.ERC.out -j y -V $GATK_EXECUTABLE --java-options "-Xmx10g" HaplotypeCaller --tmp-dir $tmpdir -R $1 -I $2 -O GVCF/$name.g.vcf.gz -ERC GVCF -GQB 20 -GQB 100 --min-pruning 2 #-GQB specifies the exclusive upper bounds for reference confidence GQ bands
-
-
-./bam2gvcf_GATK4.sh reference/Gorilla_gorilla_gorilla.fasta aligned_bam/gor1.5.indel_realigned.bam
-
-for i in aligned_bam/*.5.indel_realigned.bam; do ./bam2gvcf_GATK4.sh reference/Gorilla_gorilla_gorilla.fasta $i; done
