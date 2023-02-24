@@ -46,25 +46,44 @@ currID=`basename $fastqFile | sed 's:.R1_001.fastq.gz::'`
 read1=$fastqFile
 read2=`echo $fastqFile | sed 's/R1/R2/'`
 
+#Get read group information
+header=`zcat $read1 | head -1`
+IFS=':' read -a header <<< "$header"
+INSTRUMENT=${header[0]}
+RUN_ID=${header[1]}
+FLOWCELL_BARCODE=${header[2]}
+LANE=${header[3]}
+ID=$FLOWCELL_BARCODE.$LANE
+PU=$FLOWCELL_BARCODE.$LANE.$currID
+SM=$currID
+PL=ILLUMINA
+LB=TrueSeq
+
 #Process based on pipeline description at https://gatk.broadinstitute.org/hc/en-us/articles/360039568932--How-to-Map-and-clean-up-short-read-sequence-data-efficiently#step1
 #$currID.1.* files relate to running Trimmomatic, which removes Illumina adaptors
-qsub -l h_vmem=8g -l h_rt=20:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx8G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $currID.1.forward_paired.fq.gz $currID.1.forward_unpaired.fq.gz $currID.1.reverse_paired.fq.gz $currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
+qsub -l h_vmem=8g -l h_rt=20:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx8G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
 
-#$currID.2.* files relate to performing the alignment
+#$currID.2.* files relate to performing QC
+qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V -hold_jid trim.$currID fastqc $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
+
+#$currID.3.* files relate to performing the alignment
 #We write the commands to a script so that we can bwa, and MergeBamAlignment piped into each other as below
 #This enables us to not have to write out large temporary read files
 echo "#!/bin/bash" > $outDir/$currID.3.align.sh
-echo "$bwaVersion/bwa mem -M -t $numCPUs -p $refFile $currID.1.forward_paired.fq.gz $currID.1.reverse_paired.fq.gz | java -Xmx32G -jar $picardVersion/picard.jar SortSam INPUT=/dev/stdout OUTPUT=$currID.bam SORT_ORDER=coordinate TMP_DIR=tempDir" >> $outDir/$currID.2.align.sh
-chmod u=rwx $outDir/$currID.2.align.sh
-qsub -l h_rt=48:00:00 -p -10 -pe smp $numCPUs -binding linear:$numCPUs -S /bin/bash -N aln.$currID -cwd -o $outDir/$currID.2.align.out -j y -V -hold_jid mrk.$currID -l h_vmem=6G $outDir/$currID.2.align.sh
+echo "$bwaVersion/bwa mem -M -t $numCPUs -p $refFile $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz | java -Xmx32G -jar $picardVersion/picard.jar SortSam INPUT=/dev/stdout OUTPUT=$outDir/$currID.bam SORT_ORDER=coordinate TMP_DIR=tempDir" >> $outDir/$currID.3.align.sh
+chmod u=rwx $outDir/$currID.3.align.sh
+qsub -l h_rt=48:00:00 -p -10 -pe smp $numCPUs -binding linear:$numCPUs -S /bin/bash -N aln.$currID -cwd -o $outDir/$currID.3.align.out -j y -V -hold_jid fastqc.$currID -l h_vmem=6G $outDir/$currID.3.align.sh
 
-#$currID.4.* files relate to running MarkDuplicates, which tries to find and mark redundant reads
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N mdp.$currID -cwd -o $outDir/$currID.4.mark_dup.out -pe smp $numCPUs -binding linear:$numCPUs -j y -V -hold_jid aln.$currID java -Xmx12G -jar $picardVersion/picard.jar MarkDuplicates INPUT=$outDir/$currID.3.aligned.bam OUTPUT=$outDir/$currID.4.mark_dup.bam METRICS_FILE=$outDir/$currID.4.mark_dup.metrics TMP_DIR=$tempDir
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N ind.$currID -cwd -o $outDir/$currID.4.index.out -j y -V -hold_jid mdp.$currID samtools index $outDir/$currID.4.mark_dup.bam
+#$currID.4.* files relate to adding read groups
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N readgroup.$currID -cwd -o $outDir/$currID.4.readgroup.out -j y -V -hold_jid aln.$currID java -Xmx32G -jar $picardVersion/picard.jar AddOrReplaceReadGroups INPUT=$outDir/$currID.bam OUTPUT=$outDir/$currID.4.groups_added.bam RGID=$ID RGLB=$LB RGPL=$PL RGPU=$PU RGSM=$SM
 
-#$currID.5.* files relate to running IndelRealigner, which fixes read alignments around indels
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N rtc.$currID -cwd -o $outDir/$currID.5.indel_targets.out -j y -V -hold_jid ind.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T RealignerTargetCreator -R $refFile -I $outDir/$currID.4.mark_dup.bam -o $outDir/$currID.5.indel_targets.intervals
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N idr.$currID -cwd -o $outDir/$currID.5.indel_realigned.out -j y -V -hold_jid rtc.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T IndelRealigner -R $refFile -I $outDir/$currID.4.mark_dup.bam -targetIntervals $outDir/$currID.5.indel_targets.intervals -o $outDir/$currID.5.indel_realigned.bam
+#$currID.5.* files relate to running MarkDuplicates, which tries to find and mark redundant reads
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N mdp.$currID -cwd -o $outDir/$currID.5.mark_dup.out -pe smp $numCPUs -binding linear:$numCPUs -j y -V -hold_jid readgroup.$currID java -Xmx12G -jar $picardVersion/picard.jar MarkDuplicates INPUT=$outDir/$currID.4.groups_added.bam OUTPUT=$outDir/$currID.5.mark_dup.bam METRICS_FILE=$outDir/$currID.5.mark_dup.metrics TMP_DIR=$tempDir
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N ind.$currID -cwd -o $outDir/$currID.5.index.out -j y -V -hold_jid mdp.$currID samtools index $outDir/$currID.5.mark_dup.bam
+
+#$currID.6.* files relate to running IndelRealigner, which fixes read alignments around indels
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N rtc.$currID -cwd -o $outDir/$currID.6.indel_targets.out -j y -V -hold_jid ind.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T RealignerTargetCreator -R $refFile -I $outDir/$currID.5.mark_dup.bam -o $outDir/$currID.6.indel_targets.intervals
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N idr.$currID -cwd -o $outDir/$currID.6.indel_realigned.out -j y -V -hold_jid rtc.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T IndelRealigner -R $refFile -I $outDir/$currID.5.mark_dup.bam -targetIntervals $outDir/$currID.6.indel_targets.intervals -o $outDir/$currID.6.indel_realigned.bam
 
 #$currID.6.* files relate to running BaseQualityScoreRecalibration, which modifies base qualities to make them more accurate for performing variant calling
 #Since our variant calling pipeline includes BQSR, we don't always want to run it; thus it is opt-in, argument-wise
