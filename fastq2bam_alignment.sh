@@ -16,6 +16,7 @@ argumentDef+=("-gatk" gatkVersion "The directory containing the version of GATK 
 argumentDef+=("-trimmomatic" trimmomaticVersion "The directory containing the version of Trimmomatic (trimmomatic-0.39.jar) to use" 1 "/seq/vgb/software/Trimmomatic-0.39/")
 argumentDef+=("-picard" picardVersion "The directory containing the version of picard (picard.jar) to use" 1 "/seq/software/picard/1.999/bin/")
 argumentDef+=("-bwa" bwaVersion "The directory containing the version of bwa to use" 1 "/seq/vgb/software/bwa/bwa-0.7.17/bwa")
+argumentDef+=("-fastqc" fastqcVersion "The directory containing the version of fastqc to use" 1 "/seq/vgb/lmoreira/software/FastQC/fastqc")
 
 if [ "$#" == "0" ]; then
     argumentsArr=("-h")
@@ -64,7 +65,7 @@ LB=TrueSeq
 qsub -l h_vmem=8g -l h_rt=20:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx8G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
 
 #$currID.2.* files relate to performing QC
-qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V -hold_jid trim.$currID fastqc $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
+qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V -hold_jid trim.$currID $fastqcVersion $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
 
 #$currID.3.* files relate to performing the alignment
 #We write the commands to a script so that we can bwa, and MergeBamAlignment piped into each other as below
