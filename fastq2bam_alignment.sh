@@ -62,7 +62,7 @@ LB=TrueSeq
 
 #Process based on pipeline description at https://gatk.broadinstitute.org/hc/en-us/articles/360039568932--How-to-Map-and-clean-up-short-read-sequence-data-efficiently#step1
 #$currID.1.* files relate to running Trimmomatic, which removes Illumina adaptors
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx32G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
+qsub -l h_vmem=32g -l h_rt=36:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx32G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
 
 #$currID.2.* files relate to performing QC
 qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.1.fastqc.out -j y -V -hold_jid trim.$currID $fastqcVersion $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
