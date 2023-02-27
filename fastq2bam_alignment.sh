@@ -65,13 +65,13 @@ LB=TrueSeq
 qsub -l h_vmem=32g -l h_rt=36:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx32G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
 
 #$currID.2.* files relate to performing QC
-qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.1.fastqc.out -j y -V -hold_jid trim.$currID $fastqcVersion $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
+qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.2.fastqc.out -j y -V -hold_jid trim.$currID $fastqcVersion $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
 
 #$currID.3.* files relate to performing the alignment
 #We write the commands to a script so that we can bwa, and MergeBamAlignment piped into each other as below
 #This enables us to not have to write out large temporary read files
 echo "#!/bin/bash" > $outDir/$currID.3.align.sh
-echo "$bwaVersion/bwa mem -M -t $numCPUs -p $refFile $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz | java -Xmx32G -jar $picardVersion/picard.jar SortSam INPUT=/dev/stdout OUTPUT=$outDir/$currID.bam SORT_ORDER=coordinate TMP_DIR=tempDir" >> $outDir/$currID.3.align.sh
+echo "$bwaVersion/bwa mem -M -t $numCPUs -p $refFile $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz | samtools sort -o $outDir/$currID.bam -@ $numCPUs" >> $outDir/$currID.3.align.sh
 chmod u=rwx $outDir/$currID.3.align.sh
 qsub -l h_rt=48:00:00 -p -10 -pe smp $numCPUs -binding linear:$numCPUs -S /bin/bash -N aln.$currID -cwd -o $outDir/$currID.3.align.out -j y -V -hold_jid fastqc.$currID -l h_vmem=6G $outDir/$currID.3.align.sh
 
