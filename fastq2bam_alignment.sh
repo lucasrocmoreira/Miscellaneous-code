@@ -84,7 +84,7 @@ qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N ind.$currID -cwd -o $outDir/$
 
 #$currID.6.* files relate to running IndelRealigner, which fixes read alignments around indels
 qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N rtc.$currID -cwd -o $outDir/$currID.6.indel_targets.out -j y -V -hold_jid ind.$currID java -Xmx32g -Djava.io.tmpdir=$tempDir -jar $gatkVersion/GenomeAnalysisTK.jar -T RealignerTargetCreator -R $refFile -I $outDir/$currID.5.mark_dup.bam -o $outDir/$currID.6.indel_targets.intervals
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N idr.$currID -cwd -o $outDir/$currID.6.indel_realigned.out -j y -V -hold_jid rtc.$currID java -Xmx32g -Djava.io.tmpdir=$tempDir -jar $gatkVersion/GenomeAnalysisTK.jar -T IndelRealigner -R $refFile -I $outDir/$currID.5.mark_dup.bam -targetIntervals $outDir/$currID.6.indel_targets.intervals -o $outDir/$currID.6.indel_realigned.bam
+qsub -l h_vmem=64g -l h_rt=20:00:00 -b y -p -10 -N idr.$currID -cwd -o $outDir/$currID.6.indel_realigned.out -j y -V -hold_jid rtc.$currID java -Xmx64g -Djava.io.tmpdir=$tempDir -jar $gatkVersion/GenomeAnalysisTK.jar -T IndelRealigner -R $refFile -I $outDir/$currID.5.mark_dup.bam -targetIntervals $outDir/$currID.6.indel_targets.intervals -o $outDir/$currID.6.indel_realigned.bam
 
 #$currID.7.* files relate to running BaseQualityScoreRecalibration, which modifies base qualities to make them more accurate for performing variant calling
 #Since our variant calling pipeline includes BQSR, we don't always want to run it; thus it is opt-in, argument-wise
