@@ -39,8 +39,6 @@ fi
 
 export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpdir
 
-#chroms=(CM017847.1 CM017848.1 CM017849.1 CM017850.1 CM017851.1 CM017852.1 CM017853.1 CM017854.1 CM017855.1 CM017856.1 CM017857.1 CM017858.1 CM017859.1 CM017860.1 CM017861.1 CM017862.1 CM017863.1 CM017864.1 CM017865.1 CM017866.1 CM017867.1 CM017868.1 CM017869.1 CM017870.1 chrU)
-
 # -b tells the cluster to execute the job as a binary. This saves a lot of time because the cluster will not transfer your script but instead just the pointer to the path.
 # -p defines the priority of the job
 # -V declares that all environment variables in the qsub command's environment	are to be exported to the batch job.
