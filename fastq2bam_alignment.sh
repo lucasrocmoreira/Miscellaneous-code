@@ -17,6 +17,7 @@ argumentDef+=("-trimmomatic" trimmomaticVersion "The directory containing the ve
 argumentDef+=("-picard" picardVersion "The directory containing the version of picard (picard.jar) to use" 1 "/seq/software/picard/1.999/bin/")
 argumentDef+=("-bwa" bwaVersion "The directory containing the version of bwa to use" 1 "/seq/vgb/software/bwa/bwa-0.7.17/bwa")
 argumentDef+=("-fastqc" fastqcVersion "The directory containing the version of fastqc to use" 1 "/seq/vgb/lmoreira/software/FastQC/fastqc")
+argumentDef+=("-qualimap" qualimapVersion "The directory containing the version of Qualimap to use" 1 "/seq/vgb/lmoreira/software/qualimap_v2.2.1/qualimap")
 
 if [ "$#" == "0" ]; then
     argumentsArr=("-h")
@@ -62,7 +63,7 @@ LB=TrueSeq
 
 #Process based on pipeline description at https://gatk.broadinstitute.org/hc/en-us/articles/360039568932--How-to-Map-and-clean-up-short-read-sequence-data-efficiently#step1
 #$currID.1.* files relate to running Trimmomatic, which removes Illumina adaptors
-qsub -l h_vmem=32g -l h_rt=36:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx32G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/TruSeq3-PE-2.fa:2:30:10:8:true
+qsub -l h_vmem=32g -l h_rt=36:00:00 -b y -p -10 -N trim.$currID -cwd -o $outDir/$currID.1.trim.out -j y -V java -Xmx32G -jar $trimmomaticVersion/trimmomatic-0.39.jar PE $read1 $read2 $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.forward_unpaired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz $outDir/$currID.1.reverse_unpaired.fq.gz ILLUMINACLIP:$trimmomaticVersion/adapters/NexteraPE-PE.fa:2:30:10:8:true
 
 #$currID.2.* files relate to performing QC
 qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/$currID.2.fastqc.out -j y -V -hold_jid trim.$currID $fastqcVersion $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz
@@ -71,7 +72,7 @@ qsub -l h_vmem=4g -l h_rt=6:00:00 -b y -p -10 -N fastqc.$currID -cwd -o $outDir/
 #We write the commands to a script so that we can bwa, and MergeBamAlignment piped into each other as below
 #This enables us to not have to write out large temporary read files
 echo "#!/bin/bash" > $outDir/$currID.3.align.sh
-echo "$bwaVersion/bwa mem -M -t $numCPUs -p $refFile $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz | samtools sort -o $outDir/$currID.bam -@ $numCPUs" >> $outDir/$currID.3.align.sh
+echo "$bwaVersion/bwa mem -M -t $numCPUs $refFile $outDir/$currID.1.forward_paired.fq.gz $outDir/$currID.1.reverse_paired.fq.gz | samtools sort -o $outDir/$currID.bam -@ $numCPUs" >> $outDir/$currID.3.align.sh
 chmod u=rwx $outDir/$currID.3.align.sh
 qsub -l h_rt=48:00:00 -p -10 -pe smp $numCPUs -binding linear:$numCPUs -S /bin/bash -N aln.$currID -cwd -o $outDir/$currID.3.align.out -j y -V -hold_jid fastqc.$currID -l h_vmem=6G $outDir/$currID.3.align.sh
 
@@ -82,16 +83,15 @@ qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N readgroup.$currID -cwd -o $ou
 qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N mdp.$currID -cwd -o $outDir/$currID.5.mark_dup.out -pe smp $numCPUs -binding linear:$numCPUs -j y -V -hold_jid readgroup.$currID java -Xmx12G -jar $picardVersion/picard.jar MarkDuplicates INPUT=$outDir/$currID.4.groups_added.bam OUTPUT=$outDir/$currID.5.mark_dup.bam METRICS_FILE=$outDir/$currID.5.mark_dup.metrics TMP_DIR=$tempDir
 qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N ind.$currID -cwd -o $outDir/$currID.5.index.out -j y -V -hold_jid mdp.$currID samtools index $outDir/$currID.5.mark_dup.bam
 
-#$currID.6.* files relate to running IndelRealigner, which fixes read alignments around indels
-#qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N rtc.$currID -cwd -o $outDir/$currID.6.indel_targets.out -j y -V -hold_jid ind.$currID java -Xmx32g -Djava.io.tmpdir=$tempDir -jar $gatkVersion/GenomeAnalysisTK.jar -T RealignerTargetCreator -R $refFile -I $outDir/$currID.5.mark_dup.bam -o $outDir/$currID.6.indel_targets.intervals
-#qsub -l h_vmem=64g -l h_rt=20:00:00 -b y -p -10 -N idr.$currID -cwd -o $outDir/$currID.6.indel_realigned.out -j y -V -hold_jid rtc.$currID java -Xmx64g -Djava.io.tmpdir=$tempDir -jar $gatkVersion/GenomeAnalysisTK.jar -T IndelRealigner -R $refFile -I $outDir/$currID.5.mark_dup.bam -targetIntervals $outDir/$currID.6.indel_targets.intervals -o $outDir/$currID.6.indel_realigned.bam
+#$currID.6.* files relate to running Qualimap, which assesses quality of bam files
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N qua.$currID -cwd -o $outDir/$currID.6.qualimap.out -j y -V -hold_jid ind.$currID java -Xmx32g -Djava.io.tmpdir=$tempDir -jar $qualimapVersion bamqc -nt $numCPUs -bam $outDir/$currID.5.mark_dup.bam -outdir $outDir/$currID.6.QUALIMAP --java-mem-size=32G
 
 #$currID.7.* files relate to running BaseQualityScoreRecalibration, which modifies base qualities to make them more accurate for performing variant calling
 #Since our variant calling pipeline includes BQSR, we don't always want to run it; thus it is opt-in, argument-wise
 if [ "$knownVariants" != "skip" ]; then
-    qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N brc.$currID -cwd -o $outDir/$currID.7.base_recal_targets.out -j y -V -hold_jid idr.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T BaseRecalibrator -R $refFile -I $outDir/$currID.6.indel_realigned.bam -o $outDir/$currID.7.bqsr_results.table $knownVariants
-    qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N brp.$currID -cwd -o $outDir/$currID.7.base_recal_execute.out -j y -V -hold_jid brc.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T PrintReads -R $refFile -I $outDir/$currID.6.indel_realigned.bam -BQSR $outDir/$currID.7.bqsr_results.table -o $outDir/$currID.7.base_recalibrated.bam
-    qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N brt.$currID -cwd -o $outDir/$currID.7.base_recal_targets_second_pass.out -j y -V -hold_jid brc.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T BaseRecalibrator -R $refFile -I $outDir/$currID.6.indel_realigned.bam -BQSR $outDir/$currID.7.bqsr_results.table -o $outDir/$currID.7.bqsr_results.second_pass.table $knownVariants
+    qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N brc.$currID -cwd -o $outDir/$currID.7.base_recal_targets.out -j y -V -hold_jid idr.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T BaseRecalibrator -R $refFile -I $outDir/$currID.5.mark_dup.bam -o $outDir/$currID.7.bqsr_results.table $knownVariants
+    qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N brp.$currID -cwd -o $outDir/$currID.7.base_recal_execute.out -j y -V -hold_jid brc.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T PrintReads -R $refFile -I $outDir/$currID.5.mark_dup.bam -BQSR $outDir/$currID.7.bqsr_results.table -o $outDir/$currID.7.base_recalibrated.bam
+    qsub -l h_vmem=32g -l h_rt=48:00:00 -b y -p -10 -N brt.$currID -cwd -o $outDir/$currID.7.base_recal_targets_second_pass.out -j y -V -hold_jid brc.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T BaseRecalibrator -R $refFile -I $outDir/$currID.5.mark_dup.bam -BQSR $outDir/$currID.7.bqsr_results.table -o $outDir/$currID.7.bqsr_results.second_pass.table $knownVariants
     reuse R-3.2
     qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N bqc.$currID -cwd -o $outDir/$currID.7.base_recal_qc.out -j y -V -hold_jid brt.$currID java -Xmx4g -jar $gatkVersion/GenomeAnalysisTK.jar -T AnalyzeCovariates -R $refFile -before $outDir/$currID.7.bqsr_results.table -after $outDir/$currID.7.bqsr_results.second_pass.table -plots $outDir/$currID.7.bqsr_QC.pdf
 fi
