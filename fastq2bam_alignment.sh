@@ -84,7 +84,7 @@ qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N mdp.$currID -cwd -o $outDir/$
 qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N ind.$currID -cwd -o $outDir/$currID.5.index.out -j y -V -hold_jid mdp.$currID samtools index $outDir/$currID.5.mark_dup.bam
 
 #$currID.6.* files relate to running Qualimap, which assesses quality of bam files
-qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N qua.$currID -cwd -o $outDir/$currID.6.qualimap.out -j y -V -hold_jid ind.$currID java -Xmx32g -Djava.io.tmpdir=$tempDir -jar $qualimapVersion bamqc -nt $numCPUs -bam $outDir/$currID.5.mark_dup.bam -outdir $outDir/$currID.6.QUALIMAP --java-mem-size=32G
+qsub -l h_vmem=32g -l h_rt=20:00:00 -b y -p -10 -N qua.$currID -cwd -o $outDir/$currID.6.qualimap.out -j y -V -hold_jid ind.$currID $qualimapVersion bamqc -nt $numCPUs -bam $outDir/$currID.5.mark_dup.bam -outdir $outDir/$currID.6.QUALIMAP --java-mem-size=32G
 
 #$currID.7.* files relate to running BaseQualityScoreRecalibration, which modifies base qualities to make them more accurate for performing variant calling
 #Since our variant calling pipeline includes BQSR, we don't always want to run it; thus it is opt-in, argument-wise
